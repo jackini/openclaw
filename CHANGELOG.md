@@ -16,6 +16,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Agents/bootstrap: allow the bundled `bootstrap-extra-files` hook to inject arbitrary workspace-contained files into Project Context while preserving containment checks, deterministic ordering, bootstrap budgets, and subagent filtering. Fixes #39120; carries forward #39174. Thanks @r266-tech.
 - Control UI/Agents: redact tool-call args, partial/final results, derived exec output, and configured custom secret patterns before streaming tool events to the Control UI, so tool output cannot expose provider or channel credentials. Fixes #72283. (#72319) Thanks @volcano303 and @BunsDev.
 - Models/fallbacks: treat user-selected session models as exact choices, so `/model ollama/...` and model-picker switches fail visibly when the selected provider is unreachable instead of answering from an unrelated configured fallback. Fixes #73023. Thanks @pavelyortho-cyber.
 - CLI/model probes: fail local `infer model run` probes when the provider returns no text output, so unreachable local providers and empty completions no longer look like successful smoke tests. Refs #73023. Thanks @pavelyortho-cyber.
