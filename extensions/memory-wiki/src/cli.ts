@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import type { Command } from "commander";
+import { callGatewayFromCli } from "openclaw/plugin-sdk/browser-node-runtime";
 import type { OpenClawConfig } from "../api.js";
 import { applyMemoryWikiMutation } from "./apply.js";
 import {
@@ -27,13 +28,18 @@ import {
 } from "./obsidian.js";
 import { getMemoryWikiPage, searchMemoryWiki } from "./query.js";
 import { syncMemoryWikiImportedSources } from "./source-sync.js";
+import type { MemoryWikiImportedSourceSyncResult } from "./source-sync.js";
 import {
   buildMemoryWikiDoctorReport,
   renderMemoryWikiDoctor,
   renderMemoryWikiStatus,
+  type MemoryWikiDoctorReport,
+  type MemoryWikiStatus,
   resolveMemoryWikiStatus,
 } from "./status.js";
 import { initializeMemoryWikiVault } from "./vault.js";
+
+const WIKI_GATEWAY_TIMEOUT_MS = "30000";
 
 type WikiStatusCommandOptions = {
   json?: boolean;
@@ -147,6 +153,21 @@ function writeOutput(output: string, writer: Pick<NodeJS.WriteStream, "write"> =
   writer.write(output.endsWith("\n") ? output : `${output}\n`);
 }
 
+function shouldRouteBridgeRuntimeThroughGateway(config: ResolvedMemoryWikiConfig): boolean {
+  return (
+    config.vaultMode === "bridge" && config.bridge.enabled && config.bridge.readMemoryArtifacts
+  );
+}
+
+async function callWikiGateway<T>(
+  method: "wiki.status" | "wiki.doctor" | "wiki.bridge.import",
+  json?: boolean,
+): Promise<T> {
+  return (await callGatewayFromCli(method, { json, timeout: WIKI_GATEWAY_TIMEOUT_MS }, undefined, {
+    progress: false,
+  })) as T;
+}
+
 function normalizeCliStringList(values?: string[]): string[] | undefined {
   if (!values) {
     return undefined;
@@ -255,10 +276,14 @@ export async function runWikiStatus(params: {
   json?: boolean;
   stdout?: Pick<NodeJS.WriteStream, "write">;
 }) {
-  await syncMemoryWikiImportedSources({ config: params.config, appConfig: params.appConfig });
-  const status = await resolveMemoryWikiStatus(params.config, {
-    appConfig: params.appConfig,
-  });
+  const status = shouldRouteBridgeRuntimeThroughGateway(params.config)
+    ? await callWikiGateway<MemoryWikiStatus>("wiki.status", params.json)
+    : await (async () => {
+        await syncMemoryWikiImportedSources({ config: params.config, appConfig: params.appConfig });
+        return await resolveMemoryWikiStatus(params.config, {
+          appConfig: params.appConfig,
+        });
+      })();
   writeOutput(
     params.json ? JSON.stringify(status, null, 2) : renderMemoryWikiStatus(status),
     params.stdout,
@@ -272,12 +297,16 @@ export async function runWikiDoctor(params: {
   json?: boolean;
   stdout?: Pick<NodeJS.WriteStream, "write">;
 }) {
-  await syncMemoryWikiImportedSources({ config: params.config, appConfig: params.appConfig });
-  const report = buildMemoryWikiDoctorReport(
-    await resolveMemoryWikiStatus(params.config, {
-      appConfig: params.appConfig,
-    }),
-  );
+  const report = shouldRouteBridgeRuntimeThroughGateway(params.config)
+    ? await callWikiGateway<MemoryWikiDoctorReport>("wiki.doctor", params.json)
+    : await (async () => {
+        await syncMemoryWikiImportedSources({ config: params.config, appConfig: params.appConfig });
+        return buildMemoryWikiDoctorReport(
+          await resolveMemoryWikiStatus(params.config, {
+            appConfig: params.appConfig,
+          }),
+        );
+      })();
   if (!report.healthy) {
     process.exitCode = 1;
   }
@@ -509,10 +538,12 @@ export async function runWikiBridgeImport(params: {
     json: params.json,
     stdout: params.stdout,
     run: () =>
-      syncMemoryWikiImportedSources({
-        config: params.config,
-        appConfig: params.appConfig,
-      }),
+      shouldRouteBridgeRuntimeThroughGateway(params.config)
+        ? callWikiGateway<MemoryWikiImportedSourceSyncResult>("wiki.bridge.import", params.json)
+        : syncMemoryWikiImportedSources({
+            config: params.config,
+            appConfig: params.appConfig,
+          }),
     render: (value) =>
       `Bridge import synced ${value.artifactCount} artifacts across ${value.workspaces} workspaces (${value.importedCount} new, ${value.updatedCount} updated, ${value.skippedCount} unchanged, ${value.removedCount} removed). Indexes ${value.indexesRefreshed ? `refreshed (${value.indexUpdatedFiles.length} files)` : `not refreshed (${value.indexRefreshReason})`}.`,
   });
