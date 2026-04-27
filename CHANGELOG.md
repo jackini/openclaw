@@ -11,6 +11,7 @@ Docs: https://docs.openclaw.ai
 ### Fixes
 
 - Memory/Dreaming: retry Dream Diary once with the session default when a configured dreaming model is unavailable, while leaving subagent trust and allowlist errors visible instead of silently masking configuration problems. Refs #67409 and #69209. Thanks @Ghiggins18 and @everySympathy.
+- Providers/Qwen: allow explicitly configured `qwen/qwen3.6-plus` to resolve on Qwen Coding Plan endpoints while keeping the built-in catalog from advertising it there. Fixes #63654; carries forward #63987. Thanks @jepson-liu.
 
 ## 2026.4.27
 
