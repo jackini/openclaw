@@ -16,6 +16,8 @@ import type {
 export type CronEvent = {
   jobId: string;
   action: "added" | "updated" | "removed" | "started" | "finished";
+  /** Snapshot of the job at the time of the event. Included for all actions. */
+  job?: CronJob;
   runAtMs?: number;
   durationMs?: number;
   status?: CronRunStatus;
