@@ -16,6 +16,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Gateway/sessions: clone cached session stores through the persisted JSON shape instead of `structuredClone`, reducing native-memory growth on the remaining #54155 Gateway RSS/session-accumulation path while keeping #54155 as the broader tracker and carrying forward the #45438 session-cache hypothesis. Thanks @vincentkoc and the #45438 reporters/commenters.
 - Control UI/Agents: redact tool-call args, partial/final results, derived exec output, and configured custom secret patterns before streaming tool events to the Control UI, so tool output cannot expose provider or channel credentials. Fixes #72283. (#72319) Thanks @volcano303 and @BunsDev.
 - Models/fallbacks: treat user-selected session models as exact choices, so `/model ollama/...` and model-picker switches fail visibly when the selected provider is unreachable instead of answering from an unrelated configured fallback. Fixes #73023. Thanks @pavelyortho-cyber.
 - CLI/model probes: fail local `infer model run` probes when the provider returns no text output, so unreachable local providers and empty completions no longer look like successful smoke tests. Refs #73023. Thanks @pavelyortho-cyber.
