@@ -3,6 +3,8 @@ import { discoverAuthStorage, discoverModels } from "../pi-model-discovery.js";
 import { createProviderRuntimeTestMock } from "./model.provider-runtime.test-support.js";
 
 vi.mock("../model-suppression.js", () => {
+  // Mirrors the canonical manifest-driven suppression in
+  // extensions/qwen/openclaw.plugin.json and src/plugins/manifest-model-suppression.ts.
   function isQwenCodingPlanBaseUrl(value: string | undefined): boolean {
     if (!value?.trim()) {
       return false;
